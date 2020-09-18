@@ -25,7 +25,7 @@ class AbstractMessageFactory {
     this.includeErrorCauses = includeErrorCauses
   }
 
-  _createBase ({ data, error, traceId, includeErrorStacks, includeErrorCauses } = {}) {
+  _createBase ({ data, error, traceId, correlationId, includeErrorStacks, includeErrorCauses } = {}) {
     return {
       data,
       error: this._createError(error, { includeErrorStacks, includeErrorCauses }),
@@ -33,6 +33,7 @@ class AbstractMessageFactory {
         id: uuid(),
         instant: new Date().toISOString(),
         traceId: traceId || uuid(),
+        correlationId,
         origin: this.origin
       }
     }

@@ -51,15 +51,14 @@ class ResponseMessageFactory extends AbstractMessageFactory {
 
     const start = Date.parse(startInstant) || undefined
 
-    const message = this._createBase({ data, error, traceId, includeErrorStacks, includeErrorCauses })
+    const message = this._createBase({ data, error, traceId, correlationId, includeErrorStacks, includeErrorCauses })
     message.meta = {
       ...message.meta,
       response: {
         action,
         status,
         elapsedMillis: start && new Date(Date.now() - start).getTime()
-      },
-      correlationId
+      }
     }
 
     return message
