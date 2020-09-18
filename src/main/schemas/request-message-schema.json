@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://schemas.northscaler.com/json/request-message.schema.json",
+  "title": "Request Message",
+  "description": "Request message format",
+  "type": "object",
+  "required": ["meta"],
+  "properties": {
+    "data": {
+      "description": "Message specific information",
+      "type": "object"
+    },
+    "meta": {
+      "description": "Message Metadata",
+      "type": "object",
+      "required": ["origin"],
+      "properties": {
+        "action": {
+          "description": "Any action requested",
+          "type": "string"
+        },
+        "messageId": {
+          "description": "unique message identifier",
+          "type": "string",
+          "format": "uuid"
+        },
+        "instant": {
+          "description": "ISO formatted UTC datetime of the message",
+          "type": "string"
+        },
+        "correlationId": {
+          "description": "An arbitrary, unique identifier used to correlate messages",
+          "type": "string"
+        },
+        "trace": {
+          "description": "A unique identifier used to trace activities",
+          "type": "string",
+          "format": "uuid"
+        },
+        "origin": {
+          "description": "",
+          "$ref": "http://schemas.northscaler.com/json/origin.schema.json"
+        }
+      }
+    },
+    "error": {
+      "description": "If the event is a failure the error will be populated here",
+      "$ref": "http://apostrophehealth.com/error.schema.json"
+    }
+  }
+}

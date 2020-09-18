@@ -1,0 +1,134 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://northscaler.io/messaging/schema/message/event",
+  "title": "Northscaler Messaging Event Message Schema",
+  "type": "object",
+  "required": [
+    "meta"
+  ],
+  "definitions": {
+    "event": {
+      "properties": {
+      }
+    },
+    "meta": {
+      "required": [
+        "id",
+        "instant",
+        "trace",
+        "origin",
+        "event"
+      ],
+      "allOf": [
+        {
+          "$ref": "https://northscaler.io/messaging/schema/message/abstract#/definitions/abstract-meta"
+        },
+        {
+          "properties": {
+            "event": {
+              "required": [
+                "status"
+              ],
+              "properties": {
+                "will": {
+                  "description": "Name of action that will take place",
+                  "type": "string"
+                },
+                "did": {
+                  "description": "Name of action that took place",
+                  "type": "string"
+                },
+                "status": {
+                  "$ref": "https://northscaler.io/messaging/schema/message/abstract#/definitions/status"
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "status": {
+                        "const": "SUCCESS"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "status",
+                      "did"
+                    ]
+                  },
+                  "if": {
+                    "properties": {
+                      "status": {
+                        "const": "FAILURE"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "status",
+                      "did"
+                    ]
+                  },
+                  "if": {
+                    "properties": {
+                      "status": {
+                        "const": "PARTIAL"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "status",
+                      "did"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "data": {
+      "$ref": "https://northscaler.io/messaging/schema/message/abstract#/definitions/data"
+    },
+    "meta": {
+      "description": "Message metadata",
+      "type": "object",
+      "required": [
+        "eventOrigin"
+      ],
+      "properties": {
+        "event": {
+          "description": "Any event specific metadata.",
+          "type": "object"
+        },
+        "messageId": {
+          "description": "uuid unique message identifier",
+          "type": "string",
+          "format": "uuid"
+        },
+        "messageDatetime": {
+          "description": "ISO formatted UTC datetime of the message",
+          "type": "string"
+        },
+        "trace": {
+          "description": "uuid used to trace an action across many message.",
+          "type": "string",
+          "format": "uuid"
+        },
+        "eventOrigin": {
+          "description": "",
+          "$ref": "http://apostrophehealth.com/origin.schema.json"
+        }
+      }
+    },
+    "error": {
+      "description": "If the event is a failure the error will be populated here",
+      "$ref": "http://apostrophehealth.com/error.schema.json"
+    }
+  }
+}
