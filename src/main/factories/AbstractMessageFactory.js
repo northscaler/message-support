@@ -40,8 +40,9 @@ class AbstractMessageFactory {
 
   _createError (error, { includeErrorStacks, includeErrorCauses } = {}) {
     if (!error) return error
+
     includeErrorStacks = includeErrorStacks === undefined ? this.includeErrorStacks : includeErrorStacks
-    includeErrorCauses = includeErrorCauses === undefined ? this.includeErrorStacks : includeErrorCauses
+    includeErrorCauses = includeErrorCauses === undefined ? this.includeErrorCauses : includeErrorCauses
 
     const omitting = []
     if (!includeErrorCauses) omitting.push('cause')
@@ -53,7 +54,7 @@ class AbstractMessageFactory {
       name: error.name,
       code: error.code,
       info: error.info,
-      cause: error.cause && this.formatError(error.cause)
+      cause: this._createError(error.cause)
     }
   }
 }

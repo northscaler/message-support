@@ -1,426 +1,350 @@
-# `@northscaler/aspectify`
-This package contains an implementation of _exclusively decorator-driven_ aspect-oriented programming (AOP), née [@scispike/aspectify](https://www.npmjs.com/package/@scispike/aspectify).
-It's similar in spirit to AspectJ, especially when the application of advice is determined by annotations.
-With this strategy, advised methods carry a visual indicator (the decorator) in the source that there is incoming behavior (the advice).
-In this way, there is no need for a special, AOP-aware editor for the developer to know when advice is applicable.
+# `@northscaler/message-support`
 
-> NOTE: This currently uses Babel 7's `@babel/plugin-proposal-decorators` in `legacy: true` mode, which is compliant with TC39's Stage 1 decorator proposal.
-> As the decorator proposal matures, this library will have to be updated to support later proposals (stage 2 & later).
+Message factories to use in your [CQRS](https://www.martinfowler.com/bliki/CQRS.html) or asynchronous, message-based architectures.
 
-> NOTE 2: Until further notice, do _not_ use `retainLines: true` in your Babel configuration, as it breaks Babel transpilation!
+## Types of messages
 
-As the project takes shape, we'll be adding more to this readme.
-In the meantime, see the tests for usage information.
+This library supports three types of messages:
+* request,
+* response, and
+* event
 
-## TL;DR
-* Configure Babel (example is for `.babelrc` using Babel 7):
+messages.
 
-```json
+### Key message features
+
+There are three top-level sections to each message:
+
+* `data`: the payload of the message, which is usually an object,
+* `meta`: data about the message, including
+  * `id`: the unique message id,
+  * `origin`: the location (component & hostname) where the message was created,
+  * `instant`: the instant in time the message was created,
+  * `traceId`: a trace id that can be used for distributed tracing which can be given or is generated, and
+  * `correlationId`: an id that, if present, indicates that something is awaiting a response,
+* `error`: present if there is an error processing a message, including
+  * `name`: the `Error.name` value,
+  * `message`: the `Error.message` value,
+  * `stack`: if so configured (false by default), the `Error.stack` value,
+  * `code`: the `Error.code` value, if present,
+  * `info`: the `Error.info` value, containing contextual information provided with the `Error`, if present,
+  * `cause`: if so configured (false by default), the `Error.cause` value, holding the cause of the `Error`, if present.
+
+In addition, all message types have an `action` in a type-dependent location.
+* For a request message, it's in the `meta.request` section.
+* For an event message, it's the `meta.event` section.
+* For a response message, it's in the `meta.response` section.
+
+Each message type may include other, type-specific fields as documented.
+
+### Custom data
+The `data` section is never inspected, as it is always application-specific.
+Sometimes, applications need more than just an `action` property in the message.
+You are free to add properties anywhere you like after the factory has created the message.
+Common properties like this include
+* `scope`, `domain` or `context`, indicating some conceptual boundary that only applies to certain message processors and usually placed next to `action`,
+* `type`, indicating the type of the entity being manipulated for CRUD operations and is also usually placed next to `action`, and
+* `auth`, `security`, `securityContext`, `user` or `userContext`, holding information about the authenticated user (like user id, roles played, scopes granted, etc) causing the activity and is usually placed directly in the `meta` section.
+
+### Request messages
+
+Use the `RequestMessageFactory` to create a request message.
+
+```javascript
+const { RequestMessageFactory } = require('@northscaler/message-support').factories
+const pkg = require('.../package.json') // or whatever
+
+const factory = new RequestMessageFactory({
+  componentName: pkg.name,
+  componentVersion: pkg.version
+})
+
+const message = factory.create({
+  data: { username: 'matthew', email: 'me@me.com' },
+  action: 'CREATE_USER',
+  traceId: '456',
+  correlationId: '789'
+})
+
+console.log(JSON.stringify(message, null, 2))
+
+/* logs something like:
 {
-    "presets": [
-      [
-        "@babel/preset-env",
-        {
-          "targets": {
-            "node": true
-          }
-        }
-      ]
-    ],
-    "plugins": [
-      [
-        "@babel/plugin-proposal-decorators",
-        {
-          "legacy": true
-        }
-      ]
-    ]
-  }
-```
-
-* Define your class:
-
-```js
-// in file MyClass.js
-
-class MyClass {
-  add(a, b) {
-    if (typeof a !== 'number' || typeof b !== 'number') {
-      throw new Error('only numbers allowed')
-    }
-    return a + b
+  "data": {
+    "username": "matthew",
+    "email": "me@me.com"
+  },
+  "meta": {
+    "id": "c6cac4e6-47e4-4e6c-b0eb-95984c04b9f3",
+    "instant": "2020-09-18T18:40:52.069Z",
+    "traceId": "456",
+    "origin": {
+      "component": "@northscaler/message-support",
+      "version": "0.1.0-pre.0",
+      "hostname": "rocky.local"
+    },
+    "request": {
+      "action": "CREATE_USER"
+    },
+    "correlationId": "789"
   }
 }
-
-module.exports = MyClass
+*/
 ```
 
-* Define some advice:
-
-```js
-// in file logError.js
-
-const { AfterThrowing } = require('@northscaler/aspectify')
-
-const logError = ({ thisJoinPoint, error }) => {
-  console.log(`ERROR: ${thisJoinPoint.fullName} threw ${error}`)
-}
-
-module.exports = AfterThrowing(logError)
-```
-
-* Update your class to use your advice:
-
-```js
-// in file MyClass.js
-
-const logError = require('./LogError')
-
-class MyClass {
-  @logError
-  add(a, b) {
-    if (typeof a !== 'number' || typeof b !== 'number') {
-      throw new Error('only numbers allowed')
-    }
-    return a + b
-  }
-}
-```
-
-* Use your class:
-
-```js
-// in file go.js
-
-const MyClass = require('./MyClass')
-
-const adder = new MyClass()
-
-try {
-  adder.add('a', 'b')
-} catch (e) {
-  // gulp
-}
-
-```
-
-```sh
-$ node go.js
-ERROR: add threw Error: only numbers allowed
-```
-
-> NOTE:
-If an advised method is synchronous (not `async`), then the advice _must_ also be synchronous.
-If an advised method is `async`, the advice may be synchronous _or_ `async`.
-
-> NOTE:
-This library is not opinionated on whether decorator functions should begin with an upper case letter.
-For each advice type, there are two exports, one with a lower case first letter & one with upper case.
-Use whichever one you prefer.
-
-## What's an aspect?
-An aspect is composed of two things:  a pointcut & advice.
-
-### What's a pointcut?
-A pointcut is an expression of those places in your application code you want advice to be applied.
-This library's inspiration, AspectJ, includes a complete pointcut expression language that allows you to pick out very precise points in your application code.
-You can think of it as a query language where the data is your source code.
-Pointcut expressions result in a collection of zero or more joinpoints.
-A pointcut example in plain English could be "any method on any class starting with `foo`".
-
-Since this library is based _exclusively_ on decorators, the only kind of pointcuts supported are those where a particular decorator is present.
-In other words, you _only_ specify joinpoints explicitly via decorators; in other words, the placement of a decorator on a method is effectively identifying a joinpoint.
-
-While limiting, it also has the advantage of providing developers visual indications of incoming advice, without having to have an AOP-aware editor.
-
-### What's a joinpoint?
-A joinpoint is a particular place in your code, as identified by a pointcut.
-Continuing the example above, if you have several classes with methods beginning with the string `foo`, each one would be a distinct joinpoint selected by your pointcut expression.
-
-Remember, in this implementation of AOP, the only joinpoints you can pick out are method executions (including property accessors, since those are also methods).
-
-### What's advice?
-Advice is simply the code that runs at your joinpoints.
-It's common for people to use the term "advice" in its plural form, "advices", so get used to that.
-
-#### Advice Types
-There are several different advice types.
-
-> TIP: You should use the _least_ powerful advice necessary for your use case.
-
-* `Around`: lets you completely control the advised joinpoint; this is the _most_ powerful form of advice.
-* `Before`: invoked before a joinpoint executes; the only way to prevent execution of the advised method is to throw.
-* `AfterReturning`: invoked after a joinpoint executes normally.
-* `AfterThrowing`: invoked after a joinpoint throws.
-* `AfterFinally`: invoked after a joinpoint executes normally or throws.
-
-All advice types in this library take functions that accept a `thisJoinPoint`.
-A `thisJoinPoint` is an extension of a `thisJoinPointStaticPart`.
-Their definitions follow.
-
-##### `thisJoinPointStaticPart`
-A `thisJoinPointStaticPart` represents the information available at static analysis time, before your code executes.
-It is an object with the following properties:
-
-* `clazz`: the class (prototype) of the joinpoint, as given by the JavaScript decorator infrastructure.
-* `name`: the `name` given by the JavaScript decorator implementation; for properties, it is just the property's name _without_ the `get ` or `set ` prefix.
-* `descriptors.original`: the original [property descriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty#Description) as given by the JavaScript decorator infrastructure.
-* `descriptors.advised`: the new [property descriptor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty#Description) returned by the advice type that you're using (`Before`, `AfterReturning`, etc).
-* `accessor`: `true` if the joinpoint represents a JavaScript accessor (`get` or `set` method).
-
-##### `thisJoinPoint`
-A `thisJoinPoint` includes everything in a `thisJoinPointStaticPart`, plus:
-
-* `thiz`: the context of the joinpoint; it is either the class instance of the joinpoint, or a class if your joinpoint targets a `static` method.
-* `static`: if `true`, the context of the joinpoint is a static method, else it's `false`
-* `fullName`: same as `thisJoinPoint.name`, except when the joinpoint is an accessor, in which case it's `get ${thisJoinPoint.name}` or `set ${thisJoinPoint.name}`.
-* `args`: the arguments given to the advised method, as an array.
-* `proceed`: a function that is __only present if using `Around` or `AsyncAround` advice__, and provides you the ability to allow execution to proceed into the advised method.
-It takes a single object argument with optional keys:
-  * `thiz`: a value for the `this` reference in the advised method; defaults to `thisJoinPoint.thiz`.
-  * `args`: an array of arguments that the target advised will be called with; defaults to `thisJoinPoint.args`.
-* `get`: equal to `thisJoinPoint.fullName` if the invocation is of the `get` method of the accessor.
-* `set`: equal to `thisJoinPoint.fullName` if the invocation is of the `set` method of the accessor.
-
-The `thisJoinPoint.get` & `thisJoinPoint.set` allow you to easily detect whether the `get` or `set` accessor method has been invoked; just check the properties' [truthiness](https://developer.mozilla.org/en-US/docs/Glossary/Truthy).
-
-#### Before advice
-`Before` advice executes before the target method does.
-
-Advice function signature: `function ({ thisJoinPoint }) {}`
-
-`Before` advice allows you to do things _before_ the target method executes.
-The only way to prevent execution of the target method is to throw.
-
-Typical uses of `Before` advice include authorization, validation, deprecation warnings, etc.
-
-#### AfterReturning advice
-`AfterReturning` advice executes only after the target method returns normally, that is, without throwing anything.
-
-Advice function signature: `function ({ thisJoinPoint, returnValue }) {}`
-
-`AfterReturning` advice allows you to do things _after_ the target method returns normally.
-You cannot replace the return value, only modify it.
-
-> NOTE: If you _must_ replace the return value entirely, use `Around` advice.
-
-Typical uses of `AfterReturning` advice include compliance, data masking, etc.
-
-#### AfterThrowing advice
-`AfterThrowing` advice executes only after the target method throws anything, not returning normally.
-
-Advice function signature: `function ({ thisJoinPoint, error }) {}`
-
-`AfterThrowing` advice allows you to do things _after_ the target method has thrown something.
-You cannot replace the throwable.
-
-> NOTE: If you _must_ replace the throwable entirely, use `Around` advice.
-
-Typical uses of `AfterThrowing` advice include compliance, error logging, etc.
-
-#### AfterFinally advice
-`AfterFinally` advice executes after the target method completes, whether via returning normally or throwing.
-
-Advice function signature: `function ({ thisJoinPoint, returnValue, error }) {}`
-
-Only one of `returnValue` or `error` will be present, depending on whether the target method returned normally or threw, respectively.
-
-`AfterFinally` advice allows you to do things _after_ the target method completes.
-You cannot replace the return value or throwable, only modify them.
-
-> NOTE: If you _must_ replace the return value or throwable entirely, use `Around` advice.
-
-Typical uses of `AfterFinally` advice include timings, auditing, etc.
-
-#### Around advice
-`Around` advice is the most powerful form of advice, allowing you to completely replace the behavior of the decorated method.
-
-Advice function signature: `function ({ thisJoinPoint }) {}`
-
-In the case of `Around` advice, `thisJoinPoint` will also have a `proceed` function, that allows you to invoke the target method, optionally overriding the method's `this` reference and its arguments.
-See the documentation above for `thisJoinPoint` for more information.
-
-> NOTE: The most common error when using `Around` advice is to forget to return the target method's return value after `thisJoinPoint.proceed()`ing.
-Remember to return a value if the target method does!
-
-Typical uses of `Around` advice include caching, memoization, transaction management, method timings for service level agreement enforcement, etc.
-
-## Defining Your Own Aspects
-Recall that an aspect is fundamentally a pointcut and advice.
-In this implementation of AOP, there is no pointcut expression language like in AspectJ.
-The joinpoints are simply the methods on which you place your decorators.
-
-Advice is the code that executes at your joinpoint.
-Therefore, advice is just a function, as detailed above, that is given to your decorator.
-
-The general idea is that you select the _least_ powerful kind of advice that you need (basically, only use `Around` advice if you absolutely need to).
-Then, provide one of `@northscaler/aspectify`'s advice types your advice function.
-
-> NOTE: For testability, it's a good idea to separate advice from decorators wherein they're used.
-That way, you can test your advice separately from the decorators in which it's used.
-
-There are basically two kinds of aspects:  parameterless & parameterized.
-
-### Parameterless Aspect
-Here's an example of a parameterless `Before` aspect that enforces security:
-```js
-// in aspect file Secured.js
-
-const securityRepo = require('...') // require security repo from wherever you get it
-const getUser = require('...') // some function that retrieves the current user from some context
-
-const Secured = Before(
-  ({ thisJoinPoint }) => {
-    const user = getUser()
-
-    if (thisJoinPoint.set && !securityRepo.grants(user, thisJoinPoint.thiz, thisJoinPoint.clazz, thisJoinPoint.method)) {
-     throw new Error(`unauthorized: ${user}, ${thisJoinPoint.clazz}.${thisJoinPoint.method}`)
+### Event messages
+
+Use the `EventMessageFactory` to create event messages.
+There are two temporal kinds of event messages, past & future, and two kinds of past events, successful & unsuccessful.
+
+The most common is a success event:
+
+```javascript
+const { CodedError } = require('@northscaler/error-support')
+const { EventMessageFactory } = require('../main/factories') // require('@northscaler/message-support').factories
+const pkg = require('../../package.json') // or whatever
+
+const TestError = CodedError({ name: 'TestError' })
+const NestedTestError = CodedError({ name: 'NestedTestError' })
+
+const factory = new EventMessageFactory({
+  componentName: pkg.name,
+  componentVersion: pkg.version,
+  includeErrorStacks: true,
+  includeErrorCauses: true
+})
+
+let message = factory.createSuccess({
+  data: { username: 'matthew', email: 'me@me.com' },
+  action: 'CREATE_USER',
+  traceId: '456',
+  correlationId: '789'
+})
+
+/* logs something like:
+{
+  "data": {
+    "username": "matthew",
+    "email": "me@me.com"
+  },
+  "meta": {
+    "id": "5cfc0636-c1a8-4878-b2fd-d954db7157ea",
+    "instant": "2020-09-18T19:10:56.072Z",
+    "traceId": "456",
+    "origin": {
+      "component": "@northscaler/message-support",
+      "version": "0.1.0-pre.0",
+      "hostname": "rocky.local"
+    },
+    "event": {
+      "did": "CREATE_USER",
+      "status": "SUCCESS"
     }
   }
-)
-```
-
-To use this aspect, simply decorate the methods that you intend to secure with the `@Secured` decorator:
-```js
-// in class file Appointment.js
-
-const Secured = require('./Secured')
-
-class Appointment {
-  constructor(begin, end, notes) {
-    this.begin = begin
-    this.end = end
-    this.notes = notes
-  }
-  
-  @Secured
-  set cancelled (value) {
-    this._cancelled = value
-  }
-  
-  get cancelled () {
-    return this._cancelled
-  }
 }
+*/
 ```
 
-> NOTE: When intercepting accessors (that is, `get` & `set` methods of properties), only annotate _one_ of the accessor methods.
+Another common one is a failure event:
 
-Now, by simply using the class normally, unauthorized users will not be able to cancel appointments:
-```js
-const putUser = require('...') // some function that puts the user into some retrievable context
-const appointmentRepo = require('...') // some Appointment repository
+```javascript
+message = factory.createFailure({
+  data: { username: 'matthew', email: 'me@me.com' },
+  action: 'CREATE_USER',
+  error: new TestError({ message: 'boom', cause: new NestedTestError({ message: 'bang' }) }),
+  traceId: '456',
+  correlationId: '789'
+})
 
-putUser('liljohnny')
+console.log(JSON.stringify(message, null, 2))
 
-const appt = await appointmentRepo.findById(123)
-appt.cancelled = true // throws Error if the user is not authorized to cancel this appointment
-```
-
-> TIP: Use continuation-local storage to put things like users into a context.
-> As a shameless plug, a good library to try is [`@northscaler/continuation-local-storage`](https://www.npmjs.com/package/@northscaler/continuation-local-storage); specifically, `require('@northscaler/continuation-local-storage/context/ClsHookedContext')`.
-
-### Parameterized Aspects
-Here's an example of a parameterized `Before` aspect that enforces security:
-```js
-// in aspect file Secured.js
-
-const securityRepo = require('...') // require security repo from wherever you get it
-const getUser = require('...') // some function that retrieves the current user from some context
-
-const Secured = message => Before(
-  ({ thisJoinPoint }) => {
-    const user = getUser()
-
-    if (thisJoinPoint.set && !securityRepo.grants(user, thisJoinPoint.thiz, thisJoinPoint.clazz, thisJoinPoint.method)) {
-     throw new Error(`${message}: ${user}, ${thisJoinPoint.clazz}.${thisJoinPoint.method}`)
+/* logs something like:
+{
+  "data": {
+    "username": "matthew",
+    "email": "me@me.com"
+  },
+  "error": {
+    "name": "TestError",
+    "code": "E_TEST",
+    "cause": {
+      "name": "NestedTestError",
+      "code": "E_NESTED_TEST",
+      "message": "E_NESTED_TEST: bang",
+      "stack": null
+    },
+    "message": "E_TEST: boom: E_NESTED_TEST: bang",
+    "stack": null
+  },
+  "meta": {
+    "id": "e6232595-35cd-461f-9488-a7b69efd31b1",
+    "instant": "2020-09-18T19:07:52.359Z",
+    "traceId": "456",
+    "origin": {
+      "component": "@northscaler/message-support",
+      "version": "0.1.0-pre.0",
+      "hostname": "rocky.local"
+    },
+    "event": {
+      "did": "CREATE_USER",
+      "status": "FAILURE"
     }
   }
-)
+}
+*/
 ```
 
-To use this aspect, simply decorate the methods that you intend to secure with the `@Secured` decorator:
-```js
-// in class file Appointment.js
+You can also send events indicating that something is about to happen:
 
-const Secured = require('./Secured')
+```javascript
+message = factory.createFuture({
+  data: { username: 'matthew', email: 'me@me.com' },
+  action: 'CREATE_USER',
+  traceId: '456',
+  correlationId: '789'
+})
 
-class Appointment {
-  constructor(begin, end, notes) {
-    this.begin = begin
-    this.end = end
-    this.notes = notes
-  }
-  
-  @Secured('boom')
-  set cancelled (value) {
-    this._cancelled = value
-  }
-  
-  get cancelled () {
-    return this._cancelled
+console.log(JSON.stringify(message, null, 2))
+
+/* logs something like:
+{
+  "data": {
+    "username": "matthew",
+    "email": "me@me.com"
+  },
+  "meta": {
+    "id": "d5f024da-2ad9-43a2-aa9c-7d992088db96",
+    "instant": "2020-09-18T19:14:46.625Z",
+    "traceId": "456",
+    "origin": {
+      "component": "@northscaler/message-support",
+      "version": "0.1.0-pre.0",
+      "hostname": "rocky.local"
+    },
+    "event": {
+      "will": "CREATE_USER"
+    }
   }
 }
+*/
 ```
 
-> NOTE: When intercepting accessors (that is, `get` & `set` methods of properties), only annotate _one_ of the accessor methods.
+### Response messages
 
-Now, by simply using the class normally, unauthorized users will not be able to cancel appointments:
-```js
-const putUser = require('...') // some function that puts the user into some retrievable context
-const appointmentRepo = require('...') // some Appointment repository
+Use the `ResponseMessageFactory` to create response messages for request messages that include a `correlationId`, indicating that something is expecting a response after the request is handled.
+There are two kinds of response messages, successful & unsuccessful.
 
-putUser('liljohnny')
+The most common is a successful response.
+This example uses the convenience method `createSuccessFromRequest`.
 
-const appt = await appointmentRepo.findById(123)
-appt.cancelled = true // throws Error if the user is not authorized to cancel this appointment
-```
+```javascript
+const { CodedError } = require('@northscaler/error-support')
+const { ResponseMessageFactory, RequestMessageFactory } = require('../main/factories') // require('@northscaler/message-support').factories
+const pkg = require('../../package.json') // or whatever
 
-> TIP: Use continuation-local storage to put things like users into a context.
-> As a shameless plug, a good library to try is [`@northscaler/continuation-local-storage`](https://www.npmjs.com/package/@northscaler/continuation-local-storage); specifically, `require('@northscaler/continuation-local-storage/context/ClsHookedContext')`.
+const TestError = CodedError({ name: 'TestError' })
+const NestedTestError = CodedError({ name: 'NestedTestError' })
 
-### Synchronous v. Asynchronous Advice
-If an advised method is synchronous (not `async`), then the advice _must_ also be synchronous.
+const requestFactory = new RequestMessageFactory({
+  componentName: pkg.name,
+  componentVersion: pkg.version,
+  includeErrorStacks: false,
+  includeErrorCauses: true
+})
 
-If an advised method is `async`, the advice may be synchronous _or_ `async`.
+const responseFactory = new ResponseMessageFactory({
+  componentName: pkg.name,
+  componentVersion: pkg.version,
+  includeErrorStacks: false,
+  includeErrorCauses: true
+})
 
-## Tips, Tricks & Best Practices
-### Intercepting constructors
-Sorry, you currently can't intercept constructor execution, but there _is_ an alternative pattern.
-Simply define a static factory method on your class, and intercept _that_:
-```js
-const secured = require('./secured')
+// this is the request to which we're going to send a response message
+const request = requestFactory.create({
+  data: { username: 'matthew', email: 'me@me.com' },
+  action: 'CREATE_USER',
+  traceId: '456',
+  correlationId: '789'
+})
 
-class Appointment {
-  /**
-   * Constructs a new Appointment instance.
-   */
-  @secured
-  static new (begin, end, notes) {
-    return new Appointment(begin, end, notes)
-  }
-  
-  /**
-   * @private
-   */
-  constructor(begin, end, notes) {
-    // ...
+// say the service we delegated to assigned id '246' to the user, so add that to the data
+let message = responseFactory.createSuccessFromRequest({ request, data: { ...request.data, id: '246' } })
+
+console.log(JSON.stringify(message, null, 2))
+
+/* logs something like:
+{
+  "data": {
+    "username": "matthew",
+    "email": "me@me.com",
+    "id": "246"
+  },
+  "meta": {
+    "id": "cdd0617b-d6f8-46be-ae84-700b86d7ac30",
+    "instant": "2020-09-18T19:25:33.464Z",
+    "traceId": "456",
+    "origin": {
+      "component": "@northscaler/message-support",
+      "version": "0.1.0-pre.0",
+      "hostname": "rocky.local"
+    },
+    "response": {
+      "status": "SUCCESS",
+      "elapsedMillis": 134
+    },
+    "correlationId": "789"
   }
 }
+*/
 ```
 
-### Intercepting property accessors
-The current decorator specification behaves in such a way that you can only decorate either the `get` or `set` method, not both.
-This implementation provides as much information as possible at design time and runtime for you to be able to detect which accessor was decorated and called, respectively.
+Here is a failure response.
+This example uses the convenience method `createFailureFromRequest`.
 
-At design time, `thisJoinPointStaticPart.accessor` is truthy if the decorated method is an accessor.
+```javascript
+message = responseFactory.createFailureFromRequest({
+  request,
+  data: request.data,
+  error: new TestError({ message: 'boom', cause: new NestedTestError({ message: 'bang' }) })
+})
 
-At runtime, if `thisJoinPoint.set` is truthy, then the `set` accessor was called and `thisJoinPoint.fullName` starts with `set `, and if `thisJoinPoint.get` is truthy, then the `get` accessor was called and `thisJoinPoint.fullName` starts with `get `.
+console.log(JSON.stringify(message, null, 2))
 
-## Modifying the target class
-> NOTE: this is an advanced topic.
+/* logs something like:
+{
+  "data": {
+    "username": "matthew",
+    "email": "me@me.com"
+  },
+  "error": {
+    "name": "TestError",
+    "code": "E_TEST",
+    "cause": {
+      "name": "NestedTestError",
+      "code": "E_NESTED_TEST",
+      "message": "E_NESTED_TEST: bang",
+      "stack": null
+    },
+    "message": "E_TEST: boom: E_NESTED_TEST: bang",
+    "stack": null
+  },
+  "meta": {
+    "id": "840f5486-fe35-4661-9435-796aa0ce3483",
+    "instant": "2020-09-18T19:35:36.181Z",
+    "traceId": "456",
+    "origin": {
+      "component": "@northscaler/message-support",
+      "version": "0.1.0-pre.0",
+      "hostname": "rocky.local"
+    },
+    "response": {
+      "status": "FAILURE",
+      "elapsedMillis": 4
+    },
+    "correlationId": "789"
+  }
+}
+*/
+```
 
-This implementation also provides aspect authors the ability to modify the target class.
-Each advice type accepts an optional second argument that is a function that is given a `thisJoinPointStaticPart`, with which you can use to do any metaprogramming you need to.
-In particular, the prototype of the target class is available at `thisJoinPointStaticPart.clazz`.
-You can use that to modify whatever you'd like to.
+There is also a more general method called `create` to which these convenience methods delegate.

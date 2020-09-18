@@ -6,11 +6,24 @@ const AbstractMessageFactory = require('./AbstractMessageFactory')
 
 class ResponseMessageFactory extends AbstractMessageFactory {
   createSuccessFromRequest ({ request, data, includeErrorStacks, includeErrorCauses }) {
-    return this._createFromRequest({ request, data, status: ResponseStatus.SUCCESS })
+    return this._createFromRequest({
+      request,
+      data,
+      status: ResponseStatus.SUCCESS,
+      includeErrorStacks,
+      includeErrorCauses
+    })
   }
 
-  createFailureFromRequest ({ request, error, includeErrorStacks, includeErrorCauses }) {
-    return this._createFromRequest({ request, error, status: ResponseStatus.FAILURE })
+  createFailureFromRequest ({ request, error, data, includeErrorStacks, includeErrorCauses }) {
+    return this._createFromRequest({
+      request,
+      error,
+      data,
+      status: ResponseStatus.FAILURE,
+      includeErrorStacks,
+      includeErrorCauses
+    })
   }
 
   _createFromRequest ({ request, status, data, error, includeErrorStacks, includeErrorCauses }) {
@@ -23,7 +36,9 @@ class ResponseMessageFactory extends AbstractMessageFactory {
       status,
       data,
       error,
-      startInstant: request.meta.instant
+      startInstant: request.meta.instant,
+      includeErrorStacks,
+      includeErrorCauses
     })
   }
 
