@@ -55,7 +55,7 @@ class ResponseMessageFactory extends AbstractMessageFactory {
     message.meta.response = {
       action,
       status,
-      elapsedMillis: start && new Date(Date.now() - start).getTime()
+      elapsedMillis: start && (Date.now() - start)
     }
 
     return message

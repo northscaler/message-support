@@ -31,7 +31,7 @@ class AbstractMessageFactory {
       error: this._createError(error, { includeErrorStacks, includeErrorCauses }),
       meta: {
         id: uuid(),
-        instant: new Date().toISOString(),
+        instant: new Date(),
         traceId: traceId || uuid(),
         correlationId,
         origin: this.origin
