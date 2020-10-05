@@ -54,9 +54,9 @@
   },
   "dependencies": {
     "@babel/polyfill": "7.11.5",
-    "@northscaler/enum-support": "4.2.2",
+    "@northscaler/enum-support": "4.2.3",
     "@northscaler/error-support": "3.4.0",
-    "@northscaler/service-support": "0.3.3"
+    "@northscaler/service-support": "0.4.0-pre.3"
   },
   "devDependencies": {
     "@babel/cli": "7.11.6",
