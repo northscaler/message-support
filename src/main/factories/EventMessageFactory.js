@@ -77,7 +77,8 @@ class EventMessageFactory extends AbstractMessageFactory {
     status = status && status.name
 
     const message = this._createBase({ data, error, traceId, correlationId, includeErrorStacks, includeErrorCauses })
-    message.meta.event = { will, did, status }
+    message.meta.event = { will, did }
+    message.meta.status = status
 
     return message
   }
