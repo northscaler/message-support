@@ -32,9 +32,9 @@ describe('unit tests of EventMessageFactory', function () {
       meta: {
         event: {
           will: action,
-          did: undefined,
-          status: undefined
+          did: undefined
         },
+        status: undefined,
         traceId,
         correlationId,
         origin: {
@@ -57,9 +57,9 @@ describe('unit tests of EventMessageFactory', function () {
       meta: {
         event: {
           did: action,
-          status: ResponseStatus.SUCCESS.name,
           will: undefined
         },
+        status: ResponseStatus.SUCCESS.name,
         traceId,
         correlationId,
         origin: {
@@ -93,9 +93,9 @@ describe('unit tests of EventMessageFactory', function () {
       meta: {
         event: {
           did: action,
-          status: ResponseStatus.FAILURE.name,
           will: undefined
         },
+        status: ResponseStatus.FAILURE.name,
         traceId,
         correlationId,
         origin: {
@@ -140,9 +140,9 @@ describe('unit tests of EventMessageFactory', function () {
       meta: {
         event: {
           did: action,
-          status: ResponseStatus.FAILURE.name,
           will: undefined
         },
+        status: ResponseStatus.FAILURE.name,
         traceId,
         correlationId,
         origin: {
@@ -188,8 +188,7 @@ describe('unit tests of EventMessageFactory', function () {
       meta: {
         event: {
           will: action,
-          did: undefined,
-          status: undefined
+          did: undefined
         },
         traceId,
         correlationId,
@@ -198,6 +197,7 @@ describe('unit tests of EventMessageFactory', function () {
           version: pkg.version,
           hostname: os.hostname()
         },
+        status: undefined,
         id: event.meta.id,
         instant: event.meta.instant
       }
@@ -213,9 +213,9 @@ describe('unit tests of EventMessageFactory', function () {
       meta: {
         event: {
           did: action,
-          status: ResponseStatus.SUCCESS.name,
           will: undefined
         },
+        status: ResponseStatus.SUCCESS.name,
         traceId,
         correlationId,
         origin: {
@@ -249,9 +249,9 @@ describe('unit tests of EventMessageFactory', function () {
       meta: {
         event: {
           did: action,
-          status: ResponseStatus.FAILURE.name,
           will: undefined
         },
+        status: ResponseStatus.FAILURE.name,
         traceId,
         correlationId,
         origin: {
@@ -294,9 +294,9 @@ describe('unit tests of EventMessageFactory', function () {
       meta: {
         event: {
           did: action,
-          status: ResponseStatus.FAILURE.name,
           will: undefined
         },
+        status: ResponseStatus.FAILURE.name,
         traceId,
         correlationId,
         origin: {
