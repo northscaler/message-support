@@ -1,6 +1,6 @@
 {
   "name": "@northscaler/message-support",
-  "version": "0.1.2-rc.0",
+  "version": "0.1.2",
   "description": "Messaging primitives for Node.js",
   "homepage": "https://gitlab.com/northscaler-public/message-support",
   "repository": {
